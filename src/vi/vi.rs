@@ -16,7 +16,6 @@ use crate::vi::itoo::Cr;
 use std::cmp::min;
 use std::fs::File;
 use std::io::prelude::*;
-use std::fs::OpenOptions;
 
 pub enum Rs {
     Q,
