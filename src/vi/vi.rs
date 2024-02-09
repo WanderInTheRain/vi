@@ -61,22 +61,6 @@ impl Outt for Vi{
         Ok(())
     }
 
-    fn clearline(&mut self) -> Result<()>{
-        self.out.execute(Clear(ClearType::CurrentLine))?;
-
-        self.out.flush()?;
-
-        Ok(())
-    }
-
-    fn fpt(&mut self, s: &str) -> Result<()>{
-        print!("{s}");
-
-        self.out.flush()?;
-
-        Ok(())
-    }
-
     fn display(&mut self) -> Result<()>{
         self.clearall()?;
         self.out.execute(MoveTo(0, 0))?;
@@ -162,16 +146,24 @@ impl Itoo for Vi {
         s.insert((cx+1) as usize,ch);
         Ok(())
     }
+    fn _ent(&mut self) -> Result<()>{
+        let (cx,cy) = self.cur;
+        let new_s = self.text[cy as usize].split_off(cx as usize);
+        self.text.insert((cy+1) as usize, new_s);  
+        self.cur = (0,cy+1);
+        Ok(())
+    }
     fn _del(&mut self) -> Result<()> {
         let (cx,cy) = self.cur;
         if cx > 0{
             let s = &mut self.text[cy as usize];
             s.remove((cx-1) as usize);
             self.cur = (cx-1,cy);
-        }else{
-            self.text.pop();
-            let l = self.text.last().unwrap().len() as u16;
-            self.text.last_mut().unwrap().push('_');
+        }else if cy>0{
+            let tmp = self.text[cy as usize].clone();
+            let l = self.text[(cy-1) as usize].len() as u16;
+            self.text[(cy-1) as usize].push_str(tmp.as_str());
+            self.text.remove(cy as usize);
             self.cur = (l,cy-1);
         }
         Ok(())
@@ -194,8 +186,7 @@ impl Itoo for Vi {
                         self._mv(Cr::R)?;
                     }
                     KeyCode::Enter =>{
-                        self.text.push(String::new());
-                        self._mv(Cr::Dn)?;
+                        self._ent()?;
                     }
                     KeyCode::Left =>{
                         self._mv(Cr::L)?;
@@ -211,6 +202,12 @@ impl Itoo for Vi {
                     }
                     KeyCode::Backspace => {
                         self._del()?;
+                    }
+                    KeyCode::Tab => {
+                        for _ in 0..4{
+                            self._app(' ')?;
+                            self._mv(Cr::R)?;
+                        }
                     }
                     _ => {}
                 }
@@ -248,8 +245,8 @@ impl Shell for Vi {
         file.read_to_string(&mut content)?;
         let lines: Vec<&str> = content.split('\n').collect();
 
-        for line in lines{
-            for ch in line.chars(){
+        for i in 0..(lines.len()-1){
+            for ch in lines[i].chars(){
                 self.display()?;
                 self._app(ch)?;
                 self._mv(Cr::R)?;
@@ -257,6 +254,13 @@ impl Shell for Vi {
             self.text.push(String::new());
             self._mv(Cr::Dn)?;
         }
+
+        for ch in lines[lines.len()-1].chars(){
+            self.display()?;
+            self._app(ch)?;
+            self._mv(Cr::R)?;
+        }
+
         self.run(path)?;
         Ok(())
     }
