@@ -16,6 +16,7 @@ use crate::vi::itoo::Cr;
 use std::cmp::min;
 use std::fs::File;
 use std::io::prelude::*;
+use std::fs::OpenOptions;
 
 pub enum Rs {
     Q,
@@ -236,9 +237,10 @@ impl Itoo for Vi {
 
 impl Shell for Vi {
     fn init(&mut self,path: &String) -> Result<()>{
+        let mut file = File::open(path.as_str())?;
+
         execute!(self.out, cursor::Hide)?;
         enable_raw_mode()?;
-        let mut file = File::open(path.as_str())?;
     
         let mut content = String::new();
     
@@ -290,13 +292,14 @@ impl Shell for Vi {
     }
 
     fn save(&mut self,path: &String) -> Result<()> {
-        
-        let mut file = File::create(path.as_str())?;
-
-        for s in &mut self.text{
-            s.push('\n');
-            file.write_all(s.as_bytes())?;
+        let mut file = File::create(path)?;
+        let n = self.text.len();
+        for i in 0..n-1{
+            self.text[i].push('\n');
+            file.write_all(self.text[i].as_bytes())?;
         }
+
+        file.write_all(self.text[n-1].as_bytes())?;
 
         Ok(())
     }
